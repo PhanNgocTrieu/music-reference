@@ -2,19 +2,10 @@
 
 import SongsExplorer from "@/components/song/SongsExplorer";
 import { useLanguage } from "@/components/providers/LanguageProvider";
-import type { Lang } from "@/lib/i18n/dictionary";
 import type { Song } from "@/lib/data/songs";
 
-interface HomeContentProps {
-  songsByLang: Record<Lang, Song[]>;
-  genresByLang: Record<Lang, string[]>;
-  authorsByLang: Record<Lang, string[]>;
-  performersByLang: Record<Lang, string[]>;
-}
-
-export default function HomeContent({ songsByLang, genresByLang, authorsByLang, performersByLang }: HomeContentProps) {
+export default function HomeContent({ songs }: { songs: Song[] }) {
   const { t, lang } = useLanguage();
-  const songs = songsByLang[lang];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -26,13 +17,9 @@ export default function HomeContent({ songsByLang, genresByLang, authorsByLang, 
       {songs.length === 0 ? (
         <p className="text-center text-navy-400">{t("noSongsYet")}</p>
       ) : (
-        <SongsExplorer
-          key={lang}
-          songs={songs}
-          genres={genresByLang[lang]}
-          authors={authorsByLang[lang]}
-          performers={performersByLang[lang]}
-        />
+        // Remount on language switch: resets stale filter/sort selections that
+        // don't apply to the newly visible (language-filtered) song subset.
+        <SongsExplorer key={lang} songs={songs} />
       )}
     </div>
   );

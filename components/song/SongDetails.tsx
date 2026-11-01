@@ -4,12 +4,15 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import { genreColorClass } from "@/lib/ui/genreColor";
-import { getRefSong, type Song } from "@/lib/data/songs";
+import { titleFor, urlFor } from "@/lib/data/song-display";
+import type { Song } from "@/lib/data/songs";
 
 export default function SongDetails({ song }: { song: Song }) {
-  const { t } = useLanguage();
-  const refSong = getRefSong(song);
-  const refLabel = song.lang === "en" ? "VI" : "EN";
+  const { t, lang } = useLanguage();
+  const otherLang = lang === "en" ? "vi" : "en";
+  const otherLangLabel = lang === "en" ? "VI" : "EN";
+  const otherTitle = otherLang === "en" ? song.engTitle : song.viTitle;
+  const url = urlFor(song, lang);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
@@ -18,7 +21,14 @@ export default function SongDetails({ song }: { song: Song }) {
       </Link>
 
       <div className="mt-6 flex items-start justify-between gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-navy-900">{song.title}</h1>
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-navy-900">{titleFor(song, lang)}</h1>
+          {song.isBilingual && otherTitle && (
+            <p className="mt-1 text-sm text-navy-400">
+              {otherLangLabel}: {otherTitle}
+            </p>
+          )}
+        </div>
         <Badge label={song.key} tone="bg-gold-100 text-gold-700" />
       </div>
 
@@ -46,14 +56,16 @@ export default function SongDetails({ song }: { song: Song }) {
       </dl>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <a
-          href={song.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg bg-navy-800 px-4 py-2 text-sm font-medium text-white hover:bg-navy-700"
-        >
-          {t("listen")}
-        </a>
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-navy-800 px-4 py-2 text-sm font-medium text-white hover:bg-navy-700"
+          >
+            {t("listen")} (YouTube)
+          </a>
+        )}
         <a
           href={song.sheetUrl}
           target="_blank"
@@ -62,14 +74,6 @@ export default function SongDetails({ song }: { song: Song }) {
         >
           {t("viewSheet")}
         </a>
-        {refSong && (
-          <Link
-            href={`/song/${refSong.slug}`}
-            className="rounded-lg border border-navy-200 px-4 py-2 text-sm font-medium text-navy-900 hover:bg-cream-100"
-          >
-            {refLabel} · {refSong.title}
-          </Link>
-        )}
       </div>
     </div>
   );

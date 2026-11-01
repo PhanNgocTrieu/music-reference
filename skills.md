@@ -1,13 +1,13 @@
 ---
 name: music-reference-site
-description: Build and extend a static, no-login worship song reference site (title, author, performer, key, genres, sheet link, EN/VI cross-references) for Vision Worship Team, deployed to GitHub Pages. Use when working on any part of this project.
+description: Build and extend a static, no-login worship song reference site (title, author, performer, key, genres, sheet link, EN/VI bilingual titles) for Vision Worship Team, deployed to GitHub Pages. Use when working on any part of this project.
 ---
 
 # Music reference site skill
 
 ## Project summary
 
-Vision Worship Team's reference list of songs used in worship: title, author, performed by, a link (e.g. to listen or for lyrics), a sheet (PDF link), the musical key, and one or more genres (e.g. Christmas, Praising, Resurrection, Suffering). No login, no database, no background jobs, no lyrics stored on-site. There are two independent song catalogs — English and Vietnamese — and the site's EN/VI toggle switches which catalog is shown, not just the UI text; a song in one catalog may optionally reference its counterpart in the other. The site is static — all data lives in `data/en-songs.json` and `data/vi-songs.json`, which the owner edits by hand, and it deploys to GitHub Pages as plain static files.
+Vision Worship Team's reference list of songs used in worship: title (English and/or Vietnamese), author, performed by, a video link (usually YouTube, English and/or Vietnamese), a sheet (PDF link), the musical key, and up to 3 genres (e.g. Christmas, Praising, Resurrection, Suffering). No login, no database, no background jobs, no lyrics stored on-site. There is one unified song catalog — a song that exists in both languages is a *single* record with `eng-title`/`vi-title` and `en-url`/`vi-url` pairs; the EN/VI toggle filters the list to songs that have a title in that language and picks which title/video link is shown (and UI text), rather than switching between two separate catalogs. The site is static — song data lives in `/data`, split across any number of JSON files (any `.json` file there except `data-format.json`), each holding up to ~50 songs, named `song_list_0001.json`, `song_list_0002.json`, etc. The owner edits these by hand; it deploys to GitHub Pages as plain static files.
 
 Read `CLAUDE.md` for conventions and `docs/ui-design.md` for anything visual, before making changes.
 
@@ -16,8 +16,8 @@ Read `CLAUDE.md` for conventions and `docs/ui-design.md` for anything visual, be
 | Layer | Choice |
 |---|---|
 | Frontend | Next.js (App Router, TypeScript), `output: "export"` (static export) |
-| Data | Two JSON files (`data/en-songs.json`, `data/vi-songs.json`), read through `/lib/data` |
-| Validation | zod, used when loading the JSON files |
+| Data | Every `*.json` file in `/data` except `data-format.json`, read through `/lib/data` |
+| Validation | zod, used when loading each JSON file |
 | UI | Tailwind CSS |
 | Search/filter | Client-side only (`SongsExplorer`), no API |
 | Hosting | GitHub Pages, built and deployed by `.github/workflows/deploy.yml` |
@@ -26,48 +26,48 @@ There is intentionally no database, cache, search engine, auth system, or worker
 
 ## Data model
 
-A song (`lib/data/songs.ts`) has:
+`data/data-format.json` is the field reference (not real data — always excluded from loading). A song entry in a `song_list_*.json` file has:
 
-- `slug` — unique **across both language files** (combined lookup), used in the URL (`/song/{slug}`)
-- `title`
+- `slug` — unique **across every file in `/data`**, set by hand, used in the URL (`/song/{slug}`)
+- `eng-title` / `vi-title` — at least one is required; a song only needs both if it's genuinely bilingual
+- `is_bilingual` — `true` only when both titles are filled in for the *same* song
 - `author` — who wrote it
-- `performedBy` — who performs/recorded it
-- `url` — a link to listen to it (or find lyrics on a licensed source — never embed lyric text here)
-- `sheetUrl` — a link to the PDF chord sheet
-- `key` — the musical key
-- `genres` — one or more of a free-form list (e.g. Christmas, Praising, Resurrection, Suffering); keep casing consistent with existing entries so the filter dropdown doesn't fragment. Genre names are not translated between the two files.
-- `ref` — optional. The `slug` of the matching song in the *other* language's file, when a bilingual counterpart exists. Leave it out when there isn't one — not every song needs a pair.
-- `lang` — added automatically by `lib/data/songs.ts` (not in the JSON files); tells you which catalog a `Song` object came from.
+- `performed by` — who performs/recorded it (note the literal space in the key — it's part of the authored JSON format)
+- `en-url` / `vi-url` — video link for that language (almost always YouTube); same "at least one required" rule as the titles, same pairing logic
+- `sheet-url` — a link to the PDF chord sheet
+- `key chord` — the musical key
+- `genre` — an array of 1 to 3 free-form values (e.g. Christmas, Praising, Resurrection, Suffering); keep casing consistent with existing entries so the filter dropdown doesn't fragment. Not translated between `eng-title`/`vi-title`.
 
-`lib/data/songs.ts` exposes:
+`lib/data/songs.ts` reads every file, validates each with zod, and normalizes the authored field names into a camelCase `Song` type (`engTitle`, `viTitle`, `isBilingual`, `performedBy`, `engUrl`, `viUrl`, `sheetUrl`, `key`, `genres`) — that's what the rest of the app (components, tests) consumes. `isBilingual` is **derived** from whether both titles are actually non-blank (after trimming), not copied from the authored `is_bilingual` flag — a hand-entry mistake like `is_bilingual: true` with `"vi-title": ""` is corrected automatically. It throws at build time if two songs share a `slug` across files. It exposes `getAllSongs()` and `getSongBySlug(slug)` only — per-language genre/author/performer option lists are derived client-side in `SongsExplorer` (see UI rules) since they depend on the active language toggle, which the filesystem-reading server code has no knowledge of.
 
-- `getAllSongs(lang)`, `getAllGenres(lang)`, `getAllAuthors(lang)`, `getAllPerformers(lang)` — scoped to one language's catalog
-- `getSongBySlug(slug)` — searches both catalogs (used by the detail route, since a URL doesn't carry language)
-- `getRefSong(song)` — resolves `song.ref` to the actual `Song` in the other catalog, or `undefined`
+`lib/data/song-display.ts` exposes `titleFor(song, lang)` and `urlFor(song, lang)` — the title/video link to display for the active language, each falling back to whichever one the song actually has (same `en ?? vi` / `vi ?? en` pattern for both). `lib/utils/unique-sorted.ts` exposes the plain `uniqueSorted()` helper. None of these files has a filesystem dependency, so all are safe to import from client components (unlike `lib/data/songs.ts`, which uses Node's `fs`/`path` and must only ever be used from Server Components — see Rules below).
 
 ## Rules to follow
 
-1. All song data lives in `data/en-songs.json` and `data/vi-songs.json`. Never hardcode song data in components or introduce a database.
-2. Read and validate the JSON through `lib/data/songs.ts` (zod schema). Never import either JSON file directly from a component or page.
-3. Use `slug` in URLs. Keep slugs unique across *both* files — the detail page looks them up without knowing which language they belong to.
-4. Never store or display lyrics — link out instead. This is a copyright constraint (worship songs are often CCLI-licensed), not a style choice.
-5. Pages are statically generated (`generateStaticParams`, combining both languages) and the whole app builds with `output: "export"` — avoid anything that needs a Node server (API routes, server actions, middleware) at runtime.
-6. `basePath` is set in `next.config.ts` for the GitHub Pages project URL; reference public assets with `process.env.NEXT_PUBLIC_BASE_PATH` when hardcoding a path.
-7. Ask before adding a new dependency, a database, auth, or any other service.
+1. All song data lives under `/data`, one JSON array per file, each entry matching `data/data-format.json`'s shape. Never hardcode song data in components or introduce a database.
+2. Read and validate the JSON through `lib/data/songs.ts` (zod schema). Never import a `data/*.json` file directly from a component or page.
+3. `lib/data/songs.ts` uses Node's `fs`/`path` to read the `/data` folder at build time — only import it from Server Components (pages). Client components (`"use client"`) must only `import type { Song }` from it, or import the filesystem-free `lib/data/song-display.ts` for display logic. Importing a runtime value from `lib/data/songs.ts` into a client component will break the build.
+4. Use `slug` in URLs; it must be unique across *every* file in `/data`, not just within one file.
+5. Never store or display lyrics — link out instead. This is a copyright constraint (worship songs are often CCLI-licensed), not a style choice.
+6. Pages are statically generated (`generateStaticParams`) and the whole app builds with `output: "export"` — avoid anything that needs a Node server (API routes, server actions, middleware) at runtime.
+7. `basePath` is set in `next.config.ts` for the GitHub Pages project URL; reference public assets with `process.env.NEXT_PUBLIC_BASE_PATH` when hardcoding a path.
+8. Ask before adding a new dependency, a database, auth, or any other service.
 
 ## UI rules
 
 1. Build mobile layout first, then scale up.
-2. The home page needs search (title/performer) plus filters by author, performer and genre, scoped to the active language's catalog, and an empty state when nothing matches.
-3. `SongsTable` caps its visible height to roughly 10 rows with a scrollbar beyond that (`max-h-[31rem] overflow-auto` with a sticky header) — don't let it grow unbounded.
-4. The table does not show an Author column (kept on the detail page only). Genre badges stack vertically within their cell so rows stay visually aligned; columns are separated with `divide-x`.
-5. The table's last column links to the song's cross-language counterpart (via `getRefSong`), labeled "EN ref"/"VI ref" depending on the active language; hovering the link previews the other song's title/author/performer/key via `HoverPreview` (a portal, so it isn't clipped by the table's scroll container).
-6. The song page needs a not-found state for an unknown slug.
-7. Pages must be accessible (keyboard, contrast, alt text) and have SEO metadata.
+2. `SongsExplorer` first filters `songs` down to the active language (a song needs a non-blank `engTitle`/`viTitle` for that language to appear at all — the other language's songs don't show, to avoid clutter), *then* derives the genre/author/performer dropdown options from that subset, then applies the search box (matches both titles, author, performer) and dropdown filters. `HomeContent` remounts `SongsExplorer` with `key={lang}` on toggle so stale filter/sort selections from the other language don't linger. Empty state when nothing matches.
+3. `SongsTable` columns Title, Performed by and Key are sortable (click to toggle ascending/descending, via `aria-sort` on the `<th>`); Title sorts by the currently-displayed title (`titleFor`). Genres/Sheet/the bilingual-ref column are not sortable.
+4. `SongsTable` caps its visible height to roughly 10 rows with a scrollbar beyond that (`max-h-[31rem] overflow-auto` with a sticky header) — don't let it grow unbounded.
+5. The table does not show an Author column (kept on the detail page only). Genre badges stack vertically within their cell so rows stay visually aligned; columns are separated with `divide-x`.
+6. The video-link column (header reuses the `listen` i18n key) links via `urlFor(song, lang)`; its visible text is always the literal "YouTube" (not translated, not the real URL — same pattern as "PDF" in the Sheet column), since almost every link is a YouTube video. Shows "—" if the song has neither `en-url` nor `vi-url` for some reason.
+7. The table's last column, when a song's `isBilingual` is true, shows a small "EN"/"VI" badge (whichever is the *other* language); hovering it (via `HoverPreview`, a portal so it isn't clipped by the table's scroll container) previews that song's title in the other language. Non-bilingual songs show "—".
+8. The song page needs a not-found state for an unknown slug.
+9. Pages must be accessible (keyboard, contrast, alt text) and have SEO metadata.
 
 ## How to work on a task
 
 1. Restate the task in one or two sentences and list the files you expect to touch.
-2. If the task changes the data shape, update the zod schema in `lib/data/songs.ts` and both `data/*-songs.json` files together.
+2. If the task changes the data shape, update the zod schema and the `Song` interface in `lib/data/songs.ts`, `data/data-format.json`, and the existing `data/song_list_*.json` files together.
 3. Implement in small steps and run type-check, lint and tests after each step.
 4. Summarize what changed and what is left, in a few lines.

@@ -4,37 +4,42 @@ import { useMemo, useState } from "react";
 import Select from "@/components/ui/Select";
 import SongsTable from "@/components/song/SongsTable";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { uniqueSorted } from "@/lib/utils/unique-sorted";
 import type { Song } from "@/lib/data/songs";
 
 const ALL = "all";
 
-interface SongsExplorerProps {
-  songs: Song[];
-  genres: string[];
-  authors: string[];
-  performers: string[];
-}
-
-export default function SongsExplorer({ songs, genres, authors, performers }: SongsExplorerProps) {
-  const { t } = useLanguage();
+export default function SongsExplorer({ songs }: { songs: Song[] }) {
+  const { t, lang } = useLanguage();
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState(ALL);
   const [author, setAuthor] = useState(ALL);
   const [performer, setPerformer] = useState(ALL);
 
+  // Only songs that actually have a title in the active language — keeps
+  // the list from mixing in the other language's songs.
+  const langSongs = useMemo(
+    () => songs.filter((song) => (lang === "en" ? Boolean(song.engTitle) : Boolean(song.viTitle))),
+    [songs, lang]
+  );
+
+  const genres = useMemo(() => uniqueSorted(langSongs.flatMap((s) => s.genres)), [langSongs]);
+  const authors = useMemo(() => uniqueSorted(langSongs.map((s) => s.author)), [langSongs]);
+  const performers = useMemo(() => uniqueSorted(langSongs.map((s) => s.performedBy)), [langSongs]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return songs.filter((song) => {
+    return langSongs.filter((song) => {
       if (genre !== ALL && !song.genres.includes(genre)) return false;
       if (author !== ALL && song.author !== author) return false;
       if (performer !== ALL && song.performedBy !== performer) return false;
       if (q) {
-        const haystack = `${song.title} ${song.author} ${song.performedBy}`.toLowerCase();
+        const haystack = `${song.engTitle ?? ""} ${song.viTitle ?? ""} ${song.author} ${song.performedBy}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [songs, query, genre, author, performer]);
+  }, [langSongs, query, genre, author, performer]);
 
   return (
     <div>

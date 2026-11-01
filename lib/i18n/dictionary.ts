@@ -35,7 +35,7 @@ export const translations = {
     noMatches: "Không có bài hát phù hợp với bộ lọc.",
     colTitle: "Tên bài",
     colAuthor: "Tác giả",
-    colPerformedBy: "Ca sĩ",
+    colPerformedBy: "Trình bày",
     colKey: "Hợp âm",
     colGenres: "Chủ đề",
     colSheet: "Bản nhạc",

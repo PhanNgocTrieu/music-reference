@@ -7,17 +7,19 @@ Browser -> GitHub Pages (static files)
              ^
              | pnpm build (output: "export") on push to master
              |
-       Next.js pages <- lib/data/songs.ts <- data/en-songs.json
-                                           <- data/vi-songs.json
+       Next.js pages <- lib/data/songs.ts <- fs.readdirSync("/data")
+                                           <- data/song_list_0001.json
+                                           <- data/song_list_0002.json
+                                           <- data/song_list_000N.json ...
 ```
 
 ## Read path
 
-1. The owner edits `data/en-songs.json` and/or `data/vi-songs.json` by hand to add, change or remove a song, optionally setting `ref` to link a song to its counterpart in the other file.
-2. `lib/data/songs.ts` reads and validates both files with zod at build time, tagging each song with its `lang`.
-3. Pages (`/`, `/song/[slug]`) are statically generated into `/out` by `pnpm build`; `/song/[slug]` combines slugs from both languages since the URL doesn't carry a language.
-4. The home page ships both language catalogs to the client as props. Which one is displayed, and all searching/filtering (by title/performer, or by genre/author/performer), happens entirely in the browser (`HomeContent` + `SongsExplorer`) keyed off the EN/VI toggle — no API call, no rebuild needed to switch languages.
-5. A song's `ref` is resolved client-side via `getRefSong()` to show the cross-language link/preview in `SongsTable` and on the detail page.
+1. The owner adds or edits a `data/song_list_*.json` file by hand (any `.json` file in `/data` except `data-format.json` is loaded; `data-format.json` itself is just the field reference). Each entry can carry `eng-title`/`vi-title` and `en-url`/`vi-url`, one or both of each pair (`is_bilingual: true` when both titles are present).
+2. `lib/data/songs.ts` lists the `/data` folder with Node's `fs` at build time, reads and validates every file with zod, and normalizes field names into a camelCase `Song` type. It throws if two files use the same `slug`. This only ever runs in Server Components — it's never bundled into client JS.
+3. Pages (`/`, `/song/[slug]`) are statically generated into `/out` by `pnpm build` from the single combined song list.
+4. The home page ships the whole catalog to the client as props (via `HomeContent`). `SongsExplorer` first narrows it to songs with a title in the active language, derives the genre/author/performer filter options from that subset, then applies the search box and dropdown filters — all in the browser, no API call. `SongsTable` sorts (Title/Performed by/Key) client-side too. The EN/VI toggle changes which songs are visible and which title/video link (`titleFor()`/`urlFor()`, from the filesystem-free `lib/data/song-display.ts`) and UI text are displayed.
+5. For a bilingual song, the *other* language's title/link is just a sibling field (`engTitle`/`viTitle`, `engUrl`/`viUrl`) on the same object — `SongsTable`/`SongDetails` read it directly, no cross-file lookup needed.
 
 ## Deploy path
 

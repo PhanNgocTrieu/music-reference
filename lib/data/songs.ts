@@ -1,65 +1,100 @@
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
-import enSongsData from "@/data/en-songs.json";
-import viSongsData from "@/data/vi-songs.json";
-import type { Lang } from "@/lib/i18n/dictionary";
 
-const songSchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  author: z.string(),
-  performedBy: z.string(),
-  url: z.string().url(),
-  sheetUrl: z.string().url(),
-  key: z.string(),
-  genres: z.array(z.string()).min(1),
-  /** Slug of the matching song in the other language's file, if one exists. */
-  ref: z.string().optional(),
-});
+const songFileSchema = z
+  .object({
+    slug: z.string(),
+    "eng-title": z.string().optional(),
+    "vi-title": z.string().optional(),
+    is_bilingual: z.boolean(),
+    author: z.string(),
+    genre: z.array(z.string()).min(1).max(3),
+    "performed by": z.string(),
+    "en-url": z.string().url().optional(),
+    "vi-url": z.string().url().optional(),
+    "sheet-url": z.string().url(),
+    "key chord": z.string(),
+  })
+  .refine((song) => song["eng-title"] || song["vi-title"], {
+    message: "A song needs at least an eng-title or a vi-title",
+  })
+  .refine((song) => song["en-url"] || song["vi-url"], {
+    message: "A song needs at least an en-url or a vi-url",
+  });
 
-const songsSchema = z.array(songSchema);
+const songsFileSchema = z.array(songFileSchema);
 
-export type Song = z.infer<typeof songSchema> & { lang: Lang };
-
-let cache: Record<Lang, Song[]> | null = null;
-
-function getDatasets(): Record<Lang, Song[]> {
-  if (!cache) {
-    cache = {
-      en: songsSchema.parse(enSongsData).map((song) => ({ ...song, lang: "en" as const })),
-      vi: songsSchema.parse(viSongsData).map((song) => ({ ...song, lang: "vi" as const })),
-    };
-  }
-  return cache;
+export interface Song {
+  slug: string;
+  engTitle?: string;
+  viTitle?: string;
+  isBilingual: boolean;
+  author: string;
+  genres: string[];
+  performedBy: string;
+  engUrl?: string;
+  viUrl?: string;
+  sheetUrl: string;
+  key: string;
 }
 
-export function getAllSongs(lang: Lang): Song[] {
-  return getDatasets()[lang];
+const DATA_DIR = path.join(process.cwd(), "data");
+const EXCLUDED_FILES = new Set(["data-format.json"]);
+
+let cache: Song[] | null = null;
+
+function loadAllSongs(): Song[] {
+  if (cache) return cache;
+
+  const files = fs
+    .readdirSync(DATA_DIR)
+    .filter((file) => file.endsWith(".json") && !EXCLUDED_FILES.has(file))
+    .sort();
+
+  const songs: Song[] = [];
+  const seenSlugs = new Map<string, string>();
+
+  for (const file of files) {
+    const raw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), "utf-8"));
+    const parsed = songsFileSchema.parse(raw);
+
+    for (const song of parsed) {
+      const existingFile = seenSlugs.get(song.slug);
+      if (existingFile) {
+        throw new Error(`Duplicate song slug "${song.slug}" in ${file} (already used in ${existingFile})`);
+      }
+      seenSlugs.set(song.slug, file);
+
+      const engTitle = song["eng-title"]?.trim() || undefined;
+      const viTitle = song["vi-title"]?.trim() || undefined;
+
+      songs.push({
+        slug: song.slug,
+        engTitle,
+        viTitle,
+        // Derived from the actual titles, not the authored `is_bilingual` flag —
+        // a blank "" title (even with is_bilingual: true in the JSON) doesn't count.
+        isBilingual: Boolean(engTitle) && Boolean(viTitle),
+        author: song.author,
+        genres: song.genre,
+        performedBy: song["performed by"],
+        engUrl: song["en-url"]?.trim() || undefined,
+        viUrl: song["vi-url"]?.trim() || undefined,
+        sheetUrl: song["sheet-url"],
+        key: song["key chord"],
+      });
+    }
+  }
+
+  cache = songs;
+  return songs;
+}
+
+export function getAllSongs(): Song[] {
+  return loadAllSongs();
 }
 
 export function getSongBySlug(slug: string): Song | undefined {
-  const datasets = getDatasets();
-  return datasets.en.find((song) => song.slug === slug) ?? datasets.vi.find((song) => song.slug === slug);
-}
-
-/** The matching song in the other language's file, if `song.ref` points to one. */
-export function getRefSong(song: Song): Song | undefined {
-  if (!song.ref) return undefined;
-  const otherLang: Lang = song.lang === "en" ? "vi" : "en";
-  return getDatasets()[otherLang].find((s) => s.slug === song.ref);
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
-}
-
-export function getAllGenres(lang: Lang): string[] {
-  return uniqueSorted(getAllSongs(lang).flatMap((song) => song.genres));
-}
-
-export function getAllAuthors(lang: Lang): string[] {
-  return uniqueSorted(getAllSongs(lang).map((song) => song.author));
-}
-
-export function getAllPerformers(lang: Lang): string[] {
-  return uniqueSorted(getAllSongs(lang).map((song) => song.performedBy));
+  return loadAllSongs().find((song) => song.slug === slug);
 }
