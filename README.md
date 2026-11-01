@@ -27,11 +27,11 @@ There are two song lists — [`data/en-songs.json`](data/en-songs.json) and [`da
 }
 ```
 
-If a song has both an English and a Vietnamese version, add both entries and set `ref` on each one pointing to the other's `slug` — the table then shows a hoverable "EN ref"/"VI ref" link between them. Leave `ref` out for songs that only exist in one language. Data is read and validated by [`lib/data/songs.ts`](lib/data/songs.ts) (zod schema). Commit the change and push to `main` — the site rebuilds and redeploys automatically.
+If a song has both an English and a Vietnamese version, add both entries and set `ref` on each one pointing to the other's `slug` — the table then shows a hoverable "EN ref"/"VI ref" link between them. Leave `ref` out for songs that only exist in one language. Data is read and validated by [`lib/data/songs.ts`](lib/data/songs.ts) (zod schema). Commit the change and push to `master` — the site rebuilds and redeploys automatically.
 
 ## Deployment
 
-Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): install, lint, typecheck, test, `next build` (static export to `/out`), then publish to GitHub Pages.
+Pushing to `master` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): install, lint, typecheck, test, `next build` (static export to `/out`), then publish to GitHub Pages.
 
 The site lives at `https://phanngoctrieu.github.io/music-reference/`. In the repo's GitHub Settings → Pages, set the source to **GitHub Actions** (one-time setup).
 

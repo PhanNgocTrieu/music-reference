@@ -5,7 +5,7 @@
 ```
 Browser -> GitHub Pages (static files)
              ^
-             | pnpm build (output: "export") on push to main
+             | pnpm build (output: "export") on push to master
              |
        Next.js pages <- lib/data/songs.ts <- data/en-songs.json
                                            <- data/vi-songs.json
@@ -21,7 +21,7 @@ Browser -> GitHub Pages (static files)
 
 ## Deploy path
 
-1. Pushing to `main` triggers `.github/workflows/deploy.yml`.
+1. Pushing to `master` triggers `.github/workflows/deploy.yml`.
 2. It installs, lints, type-checks, tests, builds (`next build` with `output: "export"`), and publishes `/out` to GitHub Pages via `actions/deploy-pages`.
 3. The site is served at the GitHub Pages project URL, under `basePath: "/music-reference"` (set in `next.config.ts`).
 
