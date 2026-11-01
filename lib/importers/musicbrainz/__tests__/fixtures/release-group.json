@@ -1,0 +1,16 @@
+{
+  "id": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6",
+  "title": "Sacred Songs and Solos",
+  "primary-type": "Album",
+  "secondary-types": [],
+  "first-release-date": "1873",
+  "artist-credit": [
+    {
+      "artist": {
+        "id": "c90f8b8e-5c5d-4c6f-8b5e-0c5d4c6f8b5e",
+        "name": "Ira D. Sankey",
+        "sort-name": "Sankey, Ira D."
+      }
+    }
+  ]
+}

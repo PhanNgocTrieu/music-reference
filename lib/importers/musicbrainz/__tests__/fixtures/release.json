@@ -1,0 +1,37 @@
+{
+  "id": "f1e2d3c4-b5a6-7f8e-9d0c-b1a2f3e4d5c6",
+  "title": "Sacred Songs and Solos",
+  "status": "Official",
+  "date": "1873",
+  "country": "GB",
+  "label-info": [],
+  "media": [
+    {
+      "format": "Vinyl",
+      "track-count": 3,
+      "tracks": [
+        {
+          "id": "t1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+          "number": "1",
+          "position": 1,
+          "title": "The Ninety and Nine",
+          "length": 198000
+        },
+        {
+          "id": "t2b3c4d5-e6f7-a8b9-c0d1-e2f3a4b5c6d7",
+          "number": "2",
+          "position": 2,
+          "title": "Hold the Fort",
+          "length": 175000
+        },
+        {
+          "id": "t3c4d5e6-f7a8-b9c0-d1e2-f3a4b5c6d7e8",
+          "number": "3",
+          "position": 3,
+          "title": "Blessed Assurance",
+          "length": 210000
+        }
+      ]
+    }
+  ]
+}
