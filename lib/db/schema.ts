@@ -157,6 +157,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 255 }),
+  image: text("image"),
   ...timestamps,
 });
 

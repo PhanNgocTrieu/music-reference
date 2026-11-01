@@ -18,6 +18,7 @@
     "test": "vitest",
     "worker": "dotenv -e .env.local -- tsx workers/index.ts",
     "import:enqueue": "dotenv -e .env.local -- tsx scripts/enqueue-import.ts",
+    "search:index": "dotenv -e .env.local -- tsx scripts/build-search-index.ts",
     "setup": "bash scripts/setup.sh"
   },
   "dependencies": {

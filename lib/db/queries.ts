@@ -96,7 +96,12 @@ export async function getReleaseBySlug(slug: string) {
   return db.query.releases.findFirst({
     where: eq(releases.slug, slug),
     with: {
-      releaseGroup: { with: { artist: true } },
+      releaseGroup: {
+        with: {
+          artist: true,
+          releaseGroupGenres: { with: { genre: true } },
+        },
+      },
       label: true,
       tracks: { orderBy: [tracks.position] },
       credits: { with: { artist: true } },
