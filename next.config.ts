@@ -1,25 +1,14 @@
 import type { NextConfig } from "next";
 
+const basePath = process.env.NODE_ENV === "production" ? "/music-reference" : "";
+
 const nextConfig: NextConfig = {
-  async headers() {
-    return [
-      {
-        source: "/artist/:path*",
-        headers: [{ key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" }],
-      },
-      {
-        source: "/release/:path*",
-        headers: [{ key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" }],
-      },
-      {
-        source: "/browse/:path*",
-        headers: [{ key: "Cache-Control", value: "public, s-maxage=1800, stale-while-revalidate=3600" }],
-      },
-      {
-        source: "/api/v1/:path*",
-        headers: [{ key: "Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=600" }],
-      },
-    ];
+  output: "export",
+  trailingSlash: true,
+  basePath,
+  images: { unoptimized: true },
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
   },
 };
 

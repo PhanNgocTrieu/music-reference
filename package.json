@@ -12,24 +12,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
-    "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
-    "db:seed": "dotenv -e .env.local -- tsx scripts/seed.ts",
-    "test": "vitest",
-    "worker": "dotenv -e .env.local -- tsx workers/index.ts",
-    "import:enqueue": "dotenv -e .env.local -- tsx scripts/enqueue-import.ts",
-    "search:index": "dotenv -e .env.local -- tsx scripts/build-search-index.ts",
-    "setup": "bash scripts/setup.sh"
+    "test": "vitest"
   },
   "dependencies": {
     "autoprefixer": "^10.6.2",
-    "bullmq": "^5.22.0",
-    "drizzle-orm": "^0.39.3",
-    "ioredis": "^5.4.1",
-    "meilisearch": "^0.44.0",
     "next": "^15.3.0",
-    "next-auth": "5.0.0-beta.32",
-    "pg": "^8.13.1",
     "postcss": "^8.5.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -39,16 +26,12 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.0",
     "@types/node": "^22.9.0",
-    "@types/pg": "^8.11.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.3",
     "@vitest/coverage-v8": "^2.1.5",
-    "dotenv-cli": "^7.4.4",
-    "drizzle-kit": "^0.30.4",
     "eslint": "^9.13.0",
     "eslint-config-next": "^15.3.0",
-    "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
   }

@@ -1,44 +1,43 @@
-import Link from "next/link";
-import { auth, signIn, signOut } from "@/lib/auth";
+"use client";
 
-export default async function Header() {
-  const session = await auth();
+import Link from "next/link";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+export default function Header() {
+  const { lang, setLang } = useLanguage();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
-        <Link href="/" className="text-base font-semibold text-zinc-900 hover:text-indigo-600">
-          Music Reference
+    <header className="sticky top-0 z-40 border-b border-gold-200 bg-cream-50/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
+        <Link href="/" className="flex items-center gap-2 text-base font-semibold text-navy-900 hover:text-navy-700">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export, logo.png is a fixed local asset */}
+          <img src={`${basePath}/logo.png`} alt="Vision Worship Team logo" className="h-9 w-9 rounded-full object-cover" />
+          Vision Worship Team
         </Link>
 
-        <nav className="hidden items-center gap-5 text-sm sm:flex">
-          <Link href="/search" className="text-zinc-600 hover:text-zinc-900">Search</Link>
-          <Link href="/browse/genre/hymn" className="text-zinc-600 hover:text-zinc-900">Browse</Link>
-        </nav>
-
-        <form action="/search" className="ml-auto hidden sm:block">
-          <input
-            name="q"
-            placeholder="Quick search…"
-            className="w-56 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-          />
-        </form>
-
-        <div className="ml-4 text-sm">
-          {session ? (
-            <div className="flex items-center gap-3">
-              <span className="hidden text-zinc-500 sm:block">{session.user?.name ?? session.user?.email}</span>
-              <form action={async () => { "use server"; await signOut(); }}>
-                <button className="text-zinc-500 hover:text-zinc-900">Sign out</button>
-              </form>
-            </div>
-          ) : (
-            <form action={async () => { "use server"; await signIn("github"); }}>
-              <button className="rounded-md bg-zinc-900 px-3 py-1.5 text-white hover:bg-zinc-700">
-                Sign in
-              </button>
-            </form>
-          )}
+        <div className="ml-auto flex items-center rounded-full border border-navy-100 bg-white p-0.5 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setLang("vi")}
+            aria-pressed={lang === "vi"}
+            className={`rounded-full px-2.5 py-1 transition-colors ${
+              lang === "vi" ? "bg-navy-800 text-gold-300" : "text-navy-400 hover:text-navy-700"
+            }`}
+          >
+            VI
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang("en")}
+            aria-pressed={lang === "en"}
+            className={`rounded-full px-2.5 py-1 transition-colors ${
+              lang === "en" ? "bg-navy-800 text-gold-300" : "text-navy-400 hover:text-navy-700"
+            }`}
+          >
+            EN
+          </button>
         </div>
       </div>
     </header>

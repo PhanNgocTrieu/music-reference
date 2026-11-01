@@ -2,96 +2,49 @@
 
 ## Principles
 
-- Content first: a reference site is read, scanned and compared. Dense but clear.
-- Fast: server-rendered pages, optimized images, no layout shift.
-- Mobile first: most visitors arrive from search on a phone.
+- Content first: a scannable, searchable list of worship songs.
+- Mobile first.
 - Accessible: semantic HTML, keyboard navigation, WCAG AA contrast.
-- Light and dark themes from day one.
 
 ## UI stack
 
 | Need | Choice |
 |---|---|
-| Styling | Tailwind CSS with design tokens as CSS variables |
-| Components | shadcn/ui (Radix primitives), copied into `/components/ui` |
-| Icons | lucide-react |
-| Fonts | One sans font for UI, optional serif for headings (via `next/font`) |
-| Images | `next/image` with fixed aspect ratios and blur placeholders |
-| Forms | react-hook-form with zod |
+| Styling | Tailwind CSS |
+| Components | Plain components in `/components` (no component library needed at this size) |
+| Logo | `public/logo.png` (the real brand logo), shown in the header; also copied to `app/icon.png` for the favicon |
+| Language | English + Vietnamese only, via `LanguageProvider` (`components/providers`) and `lib/i18n/dictionary.ts`; toggle lives in the header. Also switches which song catalog is shown (see below). |
+| Dropdowns | Use `components/ui/Select.tsx`, not a raw `<select>` — it replaces the native arrow with a custom chevron so it isn't flush against the border |
+| Color | Genre badges are color-coded via `lib/ui/genreColor.ts` (hashes the genre name to a palette color, so new genres in the data get a color automatically); key badges use a fixed gold tone |
+| Hover previews | Use `components/ui/HoverPreview.tsx` for any hover tooltip inside the table — it portals to `document.body` so it isn't clipped by the table's `overflow-auto` scroll container |
 
-## Design tokens
+## Color palette
 
-Define in `app/globals.css` and use only these, never raw hex values in components.
+Taken directly from `logo.png` (deep navy circle, gold/yellow flame and script text, cream ring) and defined as `navy` / `gold` / `cream` custom colors in `tailwind.config.ts`. Don't use `zinc`, `indigo`, or `amber` (the old placeholder palette) or raw hex values in components — use `navy-*` for text/structure, `gold-*` for accents and focus states, `cream-*` for backgrounds/borders. The homepage hero intentionally inverts to a navy card with gold heading text to echo the logo.
 
-- Colors: `background`, `foreground`, `muted`, `border`, `primary`, `accent`, `danger`
-- Radius: 8px for controls, 12px for cards
-- Spacing: Tailwind scale (4, 8, 12, 16, 24, 32, 48)
-- Type scale: 12, 14, 16, 20, 24, 32, 48
+## Pages
 
-Pick a distinctive accent color (not default blue) so the site has an identity.
+**Home (`/`)**
+- Header: logo + "Vision Worship Team" + EN/VI language toggle. Switching it swaps the entire song catalog (`en-songs.json` vs `vi-songs.json`), not just UI text — `SongsExplorer` remounts (`key={lang}`) so stale filter selections from the other catalog don't linger.
+- `SongsExplorer`: a search box (matches title/performer) plus three filter dropdowns (genre, author, performer), all client-side, scoped to the active language's songs.
+- `SongsTable`: columns are Title, Performed by, Key, Genres, Sheet, and a cross-language ref column ("EN ref" when viewing Vietnamese, "VI ref" when viewing English) — no Author column (that's detail-page-only). Genre badges stack vertically within their cell (not wrapped inline) so rows stay aligned column-to-column; `divide-x` draws vertical rules between columns. Capped to roughly 10 visible rows (`max-h-[31rem] overflow-auto`, sticky header) with a scrollbar beyond that. The ref cell, when a `ref` exists, is a small "EN"/"VI" pill linking to the counterpart's page; hovering it (via `HoverPreview`) shows that song's title/author/performer/key.
+- Empty states: no songs at all in the active catalog vs. no songs matching the current filters.
 
-## Layout
-
-- App shell: sticky header (logo, global search, browse menu, account) and a simple footer
-- Content width: max 1200px; reading columns max 720px
-- Grid: 1 column on mobile, 2 on tablet, 3 to 4 on desktop for card lists
-
-## Pages and key components
-
-**Home**
-- Large search box (autocomplete)
-- Sections: new additions, popular genres, featured artists
-- Components: `SearchBox`, `GenreChips`, `EntityCard` (cover, title, subtitle)
-
-**Search results**
-- Tabs or filters: All, Artists, Releases, Tracks
-- Result rows with thumbnail, name, year, type badge
-- Filters: genre, year range, country; shown in a drawer on mobile
-- Empty state with suggestions
-
-**Artist page**
-- Header: photo, name, type (person or group), country, active years, genre badges
-- Sections: biography, discography (grouped by album, single, EP, with sort and filter), members, related artists
-- Components: `ArtistHeader`, `DiscographyGrid`, `RelatedArtists`
-
-**Release page**
-- Header: cover art, title, artist link, release date, label, format badges
-- Tracklist table: number, title, duration, credits link
-- Credits section (producer, composer, engineer), other editions, external links
-- Components: `ReleaseHeader`, `Tracklist`, `CreditsList`, `EditionSwitcher`
-
-**Track page** (only if recordings and works are modeled)
-- Title, performers, composer, appears on, other versions
-
-**Browse pages** (genre, year, label, country)
-- Title and description, filter bar, paginated grid or list
-
-**Account pages** (phase 3)
-- Sign in, profile, favorites, lists, ratings
-- List editor with add and remove items
+**Song page (`/song/[slug]`)**
+- Title, key badge.
+- Author, performed by, genre badges.
+- Links: "Listen" (`url`), "View sheet (PDF)" (`sheetUrl`), and — if `getRefSong()` finds one — a link to the cross-language counterpart, opened in a new tab (the ref link navigates within the site).
+- No lyrics text anywhere on this page — see `CLAUDE.md`.
+- `notFound()` for an unknown slug.
 
 ## Shared states
 
-Every data view needs: loading skeleton, empty state, error state, and a not-found page that suggests search.
+- Empty state on the home page if the active language's catalog has no songs, or if filters match nothing.
+- Not-found page for an unknown song slug.
 
-## Behavior
+## Accessibility
 
-- Search autocomplete: debounce 200ms, keyboard arrows and Enter, shows top 5 per type
-- Pagination via URL query (`?page=2`) so pages are shareable and crawlable
-- Filters stored in the URL
-- Images lazy-load below the fold; cover art has a fallback placeholder
-
-## Accessibility checklist
-
-- One `h1` per page, logical heading order
-- All interactive elements reachable by keyboard with visible focus
-- Alt text for cover art ("Cover of {title} by {artist}")
-- Color is never the only signal
-- Respect `prefers-reduced-motion`
-
-## SEO
-
-- Per-page `<title>` and meta description from the entity
-- Open Graph image from cover art
-- JSON-LD structured data (`MusicGroup`, `MusicAlbum`, `MusicRecording`)
-- Canonical URLs and a generated sitemap
+- One `h1` per page.
+- Every filter control has an `aria-label`.
+- Links that open a new tab use `target="_blank" rel="noopener noreferrer"`.
+- Color is never the only signal (key and genre badges also carry text).

@@ -3,16 +3,12 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-accent: theme(colors.indigo.600);
-  }
-
   html {
-    @apply text-zinc-900 bg-zinc-50;
+    @apply text-navy-900 bg-cream-50;
   }
 
   h1 { @apply text-2xl font-semibold tracking-tight; }
   h2 { @apply text-xl font-semibold tracking-tight; }
   h3 { @apply text-lg font-medium; }
-  a  { @apply text-indigo-600 hover:text-indigo-800 transition-colors; }
+  a  { @apply text-navy-600 hover:text-navy-800 transition-colors; }
 }
