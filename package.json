@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "import:excel": "node scripts/import-excel.mjs"
   },
   "dependencies": {
     "autoprefixer": "^10.6.2",
@@ -33,6 +34,7 @@
     "eslint": "^9.13.0",
     "eslint-config-next": "^15.3.0",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.5"
+    "vitest": "^2.1.5",
+    "xlsx": "^0.18.5"
   }
 }

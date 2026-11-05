@@ -42,6 +42,17 @@ There is intentionally no database, cache, search engine, auth system, or worker
 
 `lib/data/song-display.ts` exposes `titleFor(song, lang)` and `urlFor(song, lang)` — the title/video link to display for the active language, each falling back to whichever one the song actually has (same `en ?? vi` / `vi ?? en` pattern for both). `lib/utils/unique-sorted.ts` exposes the plain `uniqueSorted()` helper. None of these files has a filesystem dependency, so all are safe to import from client components (unlike `lib/data/songs.ts`, which uses Node's `fs`/`path` and must only ever be used from Server Components — see Rules below).
 
+## Bulk import from Excel
+
+`scripts/import-excel.mjs` (run as `pnpm import:excel <file.xlsx>`) converts a spreadsheet into `data/song_list_*.json`, for when songs are being collected in Excel instead of typed into JSON by hand. It's a standalone CLI tool written in plain Node ESM (not TypeScript — it never imports `lib/data/songs.ts`, so it isn't bound by that file's Server-Component-only restriction, and doesn't need a TS runner). Key behavior to keep in sync if the data shape changes:
+
+- Reads the **first sheet** of the workbook. Row 1 = headers, **column A is skipped** (data starts at column B); one song per row after that.
+- Header names must match the authored field names (`slug`, `eng-title`, `vi-title`, `author`, `genre`, `performed by`, `en-url`, `vi-url`, `sheet-url`, `key chord`) — no `is_bilingual` column needed, it's derived the same way `lib/data/songs.ts` derives it.
+- `genre` is a single cell, comma-separated; truncated to 3 with a warning if more are given.
+- Blank `slug` gets auto-generated from the title (Vietnamese diacritics stripped) with a printed warning per row — not silent.
+- It has its own duplicate-zod validation mirroring `songFileSchema` in `lib/data/songs.ts` (can't import that file directly — see above) — if you change one schema, change the other.
+- **Deletes and regenerates every existing `data/song_list_*.json`** (never touches `data-format.json`) — the spreadsheet becomes the source of truth once used. This is a manual, user-run command; nothing in the app itself invokes it (see Rules below).
+
 ## Rules to follow
 
 1. All song data lives under `/data`, one JSON array per file, each entry matching `data/data-format.json`'s shape. Never hardcode song data in components or introduce a database.
@@ -51,7 +62,8 @@ There is intentionally no database, cache, search engine, auth system, or worker
 5. Never store or display lyrics — link out instead. This is a copyright constraint (worship songs are often CCLI-licensed), not a style choice.
 6. Pages are statically generated (`generateStaticParams`) and the whole app builds with `output: "export"` — avoid anything that needs a Node server (API routes, server actions, middleware) at runtime.
 7. `basePath` is set in `next.config.ts` for the GitHub Pages project URL; reference public assets with `process.env.NEXT_PUBLIC_BASE_PATH` when hardcoding a path.
-8. Ask before adding a new dependency, a database, auth, or any other service.
+8. Ask before adding a new dependency, a database, auth, or any other service. (`xlsx`, used only by `scripts/import-excel.mjs`, is already approved — it's a devDependency, never imported by the app.)
+9. `scripts/import-excel.mjs` is the only thing allowed to write `data/song_list_*.json` programmatically, and only when the user runs it by hand. Never wire it into `next build`, a page, an API route, or any other automatic trigger.
 
 ## UI rules
 

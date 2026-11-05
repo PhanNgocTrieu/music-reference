@@ -11,6 +11,7 @@ pnpm build         # static export to /out (what GitHub Pages deploys)
 pnpm test
 pnpm lint
 pnpm typecheck
+pnpm import:excel <file.xlsx>  # regenerate data/song_list_*.json from a spreadsheet
 ```
 
 ## Folder structure
@@ -30,6 +31,7 @@ pnpm typecheck
   /ui                UI helpers (e.g. genreColor)
   /utils             generic pure helpers (e.g. uniqueSorted)
 /data                data-format.json (schema reference, not real data) + song_list_000N.json shards (edit/add these to add songs)
+/scripts             import-excel.mjs — one-off CLI tool, not part of the deployed site
 /public              logo.png — the brand logo (source of the site's color palette)
 /docs                UI design notes
 /.github/workflows   GitHub Pages deploy workflow
@@ -44,6 +46,7 @@ pnpm typecheck
 - Search and genre/author/performer filtering run client-side (`SongsExplorer`) — there is no backend to filter on.
 - UI language is English and Vietnamese only (`lib/i18n/dictionary.ts`, toggled via `LanguageProvider`/`Header`). There is one unified song catalog, not two — `SongsExplorer` shows only songs that have a title in the active language (so the other language's songs don't clutter the list), displayed via `titleFor()`; genre/author/performer dropdown options are derived from that same active-language subset. Don't add other languages without asking; non-title song data (author, genres, etc.) is not translated.
 - A song is one record with optional `eng-title`/`vi-title` and optional `en-url`/`vi-url` (same "at least one of the pair" rule for both); `is_bilingual` is `true` only when both titles are filled in. There's no separate cross-reference/link field — don't reintroduce one.
+- `scripts/import-excel.mjs` (`pnpm import:excel <file.xlsx>`) regenerates `data/song_list_*.json` from a spreadsheet. It's a manual, standalone CLI tool (plain Node ESM, not TypeScript, so it doesn't need `lib/data/songs.ts`'s Server-Component-only code) — it must never be imported by or run from the app itself (`app/`, `components/`, `lib/`), per the no-imports-at-runtime rule below.
 - Color palette is `navy` / `gold` / `cream`, defined in `tailwind.config.ts` from `public/logo.png`. Don't reintroduce `zinc`/`indigo`/`amber` or raw hex values — see `docs/ui-design.md`.
 - Environment variables go in `.env.local` and are documented in `.env.example`.
 - Commit messages: short, imperative ("Add song page").
