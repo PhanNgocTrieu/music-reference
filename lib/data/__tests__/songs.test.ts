@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { getAllSongs, getSongBySlug } from "@/lib/data/songs";
+import { getAllSongs, getSongBySlug, normalizeSong, type Song } from "@/lib/data/songs";
 import { titleFor, urlFor } from "@/lib/data/song-display";
 
-describe("songs data", () => {
+// These tests check general invariants against whatever real data is in
+// `/data` right now. They must NOT assume specific songs/slugs exist —
+// `pnpm import:excel` can replace all of it with external, user-authored
+// content (e.g. automatically in CI), so anything content-specific belongs
+// in the synthetic-fixture tests below instead.
+describe("songs data (real /data content)", () => {
   it("loads songs from every shard file except data-format.json", () => {
     const songs = getAllSongs();
     expect(songs.length).toBeGreaterThan(0);
@@ -26,38 +31,83 @@ describe("songs data", () => {
   });
 
   it("returns undefined for an unknown slug", () => {
-    expect(getSongBySlug("does-not-exist")).toBeUndefined();
+    expect(getSongBySlug("does-not-exist-xyz")).toBeUndefined();
+  });
+});
+
+const baseFixture = {
+  slug: "fixture-song",
+  author: "Fixture Author",
+  genres: ["Praising"],
+  performedBy: "Fixture Performer",
+  sheetUrl: "https://example.com/sheet.pdf",
+  key: "C",
+} satisfies Partial<Song>;
+
+describe("normalizeSong (pure, synthetic fixtures)", () => {
+  it("treats a blank title as absent even when the raw is_bilingual flag says otherwise", () => {
+    const song = normalizeSong({
+      slug: "fixture-song",
+      "eng-title": "Fixture Title",
+      "vi-title": "",
+      is_bilingual: true,
+      author: "A",
+      genre: ["Praising"],
+      "performed by": "P",
+      "en-url": "https://example.com/en",
+      "sheet-url": "https://example.com/sheet.pdf",
+      "key chord": "C",
+    });
+
+    expect(song.viTitle).toBeUndefined();
+    expect(song.isBilingual).toBe(false);
   });
 
-  it("titleFor prefers the active language and falls back when a song isn't bilingual", () => {
-    const bilingual = getAllSongs().find((s) => s.isBilingual);
-    expect(bilingual).toBeDefined();
-    expect(titleFor(bilingual!, "en")).toBe(bilingual!.engTitle);
-    expect(titleFor(bilingual!, "vi")).toBe(bilingual!.viTitle);
+  it("derives isBilingual from both titles being non-blank", () => {
+    const song = normalizeSong({
+      slug: "fixture-song",
+      "eng-title": "Fixture Title",
+      "vi-title": "Tiêu Đề",
+      is_bilingual: false, // intentionally wrong — should still be derived as true
+      author: "A",
+      genre: ["Praising"],
+      "performed by": "P",
+      "en-url": "https://example.com/en",
+      "sheet-url": "https://example.com/sheet.pdf",
+      "key chord": "C",
+    });
 
-    const viOnly = getAllSongs().find((s) => !s.isBilingual && !s.engTitle);
-    expect(viOnly).toBeDefined();
-    expect(titleFor(viOnly!, "en")).toBe(viOnly!.viTitle);
+    expect(song.isBilingual).toBe(true);
+  });
+});
+
+describe("titleFor / urlFor (pure, synthetic fixtures)", () => {
+  it("prefers the active language's title and falls back when only one exists", () => {
+    const bilingual: Song = { ...baseFixture, engTitle: "English", viTitle: "Vietnamese", isBilingual: true };
+    expect(titleFor(bilingual, "en")).toBe("English");
+    expect(titleFor(bilingual, "vi")).toBe("Vietnamese");
+
+    const viOnly: Song = { ...baseFixture, viTitle: "Vietnamese only", isBilingual: false };
+    expect(titleFor(viOnly, "en")).toBe("Vietnamese only");
+    expect(titleFor(viOnly, "vi")).toBe("Vietnamese only");
   });
 
-  it("treats a blank title as absent even if the JSON's is_bilingual flag says otherwise", () => {
-    // in-christ-alone has "vi-title": "" with "is_bilingual": true in the data —
-    // a human data-entry mistake the loader should not trust blindly.
-    const song = getSongBySlug("in-christ-alone");
-    expect(song).toBeDefined();
-    expect(song!.viTitle).toBeUndefined();
-    expect(song!.isBilingual).toBe(false);
-    expect(titleFor(song!, "vi")).toBe(song!.engTitle);
+  it("falls back to the slug when neither title exists", () => {
+    const untitled: Song = { ...baseFixture, isBilingual: false };
+    expect(titleFor(untitled, "en")).toBe("fixture-song");
   });
 
-  it("urlFor prefers the active language and falls back when only one url exists", () => {
-    const bothUrls = getAllSongs().find((s) => s.engUrl && s.viUrl);
-    expect(bothUrls).toBeDefined();
-    expect(urlFor(bothUrls!, "en")).toBe(bothUrls!.engUrl);
-    expect(urlFor(bothUrls!, "vi")).toBe(bothUrls!.viUrl);
+  it("prefers the active language's url and falls back when only one exists", () => {
+    const both: Song = { ...baseFixture, isBilingual: false, engUrl: "https://example.com/en", viUrl: "https://example.com/vi" };
+    expect(urlFor(both, "en")).toBe("https://example.com/en");
+    expect(urlFor(both, "vi")).toBe("https://example.com/vi");
 
-    const engUrlOnly = getAllSongs().find((s) => s.engUrl && !s.viUrl);
-    expect(engUrlOnly).toBeDefined();
-    expect(urlFor(engUrlOnly!, "vi")).toBe(engUrlOnly!.engUrl);
+    const engOnly: Song = { ...baseFixture, isBilingual: false, engUrl: "https://example.com/en" };
+    expect(urlFor(engOnly, "vi")).toBe("https://example.com/en");
+  });
+
+  it("returns undefined when neither url exists", () => {
+    const noUrl: Song = { ...baseFixture, isBilingual: false };
+    expect(urlFor(noUrl, "en")).toBeUndefined();
   });
 });

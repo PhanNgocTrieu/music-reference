@@ -39,6 +39,35 @@ export interface Song {
   key: string;
 }
 
+type RawSong = z.infer<typeof songFileSchema>;
+
+/**
+ * Shapes an already-validated raw record into the internal `Song` type.
+ * Pure (no `fs`) — exported so tests can exercise this logic with synthetic
+ * fixtures instead of depending on whatever's actually in `/data` (which,
+ * once `pnpm import:excel` runs in CI, is external content we don't control).
+ */
+export function normalizeSong(raw: RawSong): Song {
+  const engTitle = raw["eng-title"]?.trim() || undefined;
+  const viTitle = raw["vi-title"]?.trim() || undefined;
+
+  return {
+    slug: raw.slug,
+    engTitle,
+    viTitle,
+    // Derived from the actual titles, not the authored `is_bilingual` flag —
+    // a blank "" title (even with is_bilingual: true in the JSON) doesn't count.
+    isBilingual: Boolean(engTitle) && Boolean(viTitle),
+    author: raw.author,
+    genres: raw.genre,
+    performedBy: raw["performed by"],
+    engUrl: raw["en-url"]?.trim() || undefined,
+    viUrl: raw["vi-url"]?.trim() || undefined,
+    sheetUrl: raw["sheet-url"],
+    key: raw["key chord"],
+  };
+}
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const EXCLUDED_FILES = new Set(["data-format.json"]);
 
@@ -66,24 +95,7 @@ function loadAllSongs(): Song[] {
       }
       seenSlugs.set(song.slug, file);
 
-      const engTitle = song["eng-title"]?.trim() || undefined;
-      const viTitle = song["vi-title"]?.trim() || undefined;
-
-      songs.push({
-        slug: song.slug,
-        engTitle,
-        viTitle,
-        // Derived from the actual titles, not the authored `is_bilingual` flag —
-        // a blank "" title (even with is_bilingual: true in the JSON) doesn't count.
-        isBilingual: Boolean(engTitle) && Boolean(viTitle),
-        author: song.author,
-        genres: song.genre,
-        performedBy: song["performed by"],
-        engUrl: song["en-url"]?.trim() || undefined,
-        viUrl: song["vi-url"]?.trim() || undefined,
-        sheetUrl: song["sheet-url"],
-        key: song["key chord"],
-      });
+      songs.push(normalizeSong(song));
     }
   }
 

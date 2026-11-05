@@ -38,7 +38,7 @@ There is intentionally no database, cache, search engine, auth system, or worker
 - `key chord` — the musical key
 - `genre` — an array of 1 to 3 free-form values (e.g. Christmas, Praising, Resurrection, Suffering); keep casing consistent with existing entries so the filter dropdown doesn't fragment. Not translated between `eng-title`/`vi-title`.
 
-`lib/data/songs.ts` reads every file, validates each with zod, and normalizes the authored field names into a camelCase `Song` type (`engTitle`, `viTitle`, `isBilingual`, `performedBy`, `engUrl`, `viUrl`, `sheetUrl`, `key`, `genres`) — that's what the rest of the app (components, tests) consumes. `isBilingual` is **derived** from whether both titles are actually non-blank (after trimming), not copied from the authored `is_bilingual` flag — a hand-entry mistake like `is_bilingual: true` with `"vi-title": ""` is corrected automatically. It throws at build time if two songs share a `slug` across files. It exposes `getAllSongs()` and `getSongBySlug(slug)` only — per-language genre/author/performer option lists are derived client-side in `SongsExplorer` (see UI rules) since they depend on the active language toggle, which the filesystem-reading server code has no knowledge of.
+`lib/data/songs.ts` reads every file, validates each with zod, and normalizes the authored field names into a camelCase `Song` type (`engTitle`, `viTitle`, `isBilingual`, `performedBy`, `engUrl`, `viUrl`, `sheetUrl`, `key`, `genres`) via the exported, pure `normalizeSong()` — that's what the rest of the app (components, tests) consumes. `isBilingual` is **derived** from whether both titles are actually non-blank (after trimming), not copied from the authored `is_bilingual` flag — a hand-entry mistake like `is_bilingual: true` with `"vi-title": ""` is corrected automatically. It throws at build time if two songs share a `slug` across files. It exposes `getAllSongs()` and `getSongBySlug(slug)` for the app; `normalizeSong()` is exported mainly so tests can exercise this logic with synthetic fixtures instead of depending on real `/data` content (see Testing below). Per-language genre/author/performer option lists are derived client-side in `SongsExplorer` (see UI rules) since they depend on the active language toggle, which the filesystem-reading server code has no knowledge of.
 
 `lib/data/song-display.ts` exposes `titleFor(song, lang)` and `urlFor(song, lang)` — the title/video link to display for the active language, each falling back to whichever one the song actually has (same `en ?? vi` / `vi ?? en` pattern for both). `lib/utils/unique-sorted.ts` exposes the plain `uniqueSorted()` helper. None of these files has a filesystem dependency, so all are safe to import from client components (unlike `lib/data/songs.ts`, which uses Node's `fs`/`path` and must only ever be used from Server Components — see Rules below).
 
@@ -51,7 +51,16 @@ There is intentionally no database, cache, search engine, auth system, or worker
 - `genre` is a single cell, comma-separated; truncated to 3 with a warning if more are given.
 - Blank `slug` gets auto-generated from the title (Vietnamese diacritics stripped) with a printed warning per row — not silent.
 - It has its own duplicate-zod validation mirroring `songFileSchema` in `lib/data/songs.ts` (can't import that file directly — see above) — if you change one schema, change the other.
-- **Deletes and regenerates every existing `data/song_list_*.json`** (never touches `data-format.json`) — the spreadsheet becomes the source of truth once used. This is a manual, user-run command; nothing in the app itself invokes it (see Rules below).
+- **Deletes and regenerates every existing `data/song_list_*.json`** (never touches `data-format.json`) — the spreadsheet becomes the source of truth once used.
+
+It runs two ways, both outside the Next.js app itself: by hand (`pnpm import:excel ...`), and as a conditional pre-build step in `.github/workflows/deploy.yml` — *if* `data/songs.xlsx` is committed to the repo, every push to `master` regenerates the deployed JSON from it before `pnpm build`; if that file isn't committed, the step is skipped and CI just builds from whatever JSON is already there. Either way, the regenerated JSON is not written back to the repo — for local dev to reflect spreadsheet changes too, run the command yourself and commit the result.
+
+## Testing
+
+`lib/data/__tests__/songs.test.ts` is split into two groups on purpose:
+
+- General invariants checked against whatever is actually in `/data` right now (schema shape, unique slugs, slug pattern). These must stay content-agnostic — never assert on a specific slug or song existing, since `data/song_list_*.json` can be entirely replaced by `pnpm import:excel` (including automatically in CI) with content this repo doesn't control.
+- Behavior of `normalizeSong()`, `titleFor()`, `urlFor()` against hand-built synthetic `Song`/raw-record fixtures, independent of real data. Any edge case worth testing (e.g. a blank title with a stale `is_bilingual: true`) belongs here, not wired to a real example song.
 
 ## Rules to follow
 
@@ -63,7 +72,7 @@ There is intentionally no database, cache, search engine, auth system, or worker
 6. Pages are statically generated (`generateStaticParams`) and the whole app builds with `output: "export"` — avoid anything that needs a Node server (API routes, server actions, middleware) at runtime.
 7. `basePath` is set in `next.config.ts` for the GitHub Pages project URL; reference public assets with `process.env.NEXT_PUBLIC_BASE_PATH` when hardcoding a path.
 8. Ask before adding a new dependency, a database, auth, or any other service. (`xlsx`, used only by `scripts/import-excel.mjs`, is already approved — it's a devDependency, never imported by the app.)
-9. `scripts/import-excel.mjs` is the only thing allowed to write `data/song_list_*.json` programmatically, and only when the user runs it by hand. Never wire it into `next build`, a page, an API route, or any other automatic trigger.
+9. `scripts/import-excel.mjs` is the only thing allowed to write `data/song_list_*.json` programmatically. It's invoked by hand or from the deploy workflow's pre-build step (see "Bulk import from Excel" above) — never wire it into a Next.js page, API route, `middleware.ts`, or anything that runs inside the app at request time.
 
 ## UI rules
 

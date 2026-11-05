@@ -29,6 +29,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Import songs from Excel (if data/songs.xlsx is committed)
+        run: |
+          if [ -f data/songs.xlsx ]; then
+            pnpm import:excel data/songs.xlsx
+          else
+            echo "No data/songs.xlsx found — skipping import, building from the committed JSON as-is."
+          fi
+
       - run: pnpm lint
 
       - run: pnpm typecheck

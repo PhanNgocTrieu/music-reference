@@ -33,15 +33,19 @@ A song is **one record** — if it has both an English and Vietnamese title, fil
 
 ### Bulk-importing from Excel
 
-If you're collecting songs in a `.xlsx` spreadsheet instead of typing JSON by hand:
+If you're collecting songs in a `.xlsx` spreadsheet instead of typing JSON by hand, commit it as **`data/songs.xlsx`**:
 
 ```bash
-pnpm import:excel path/to/your-file.xlsx
+pnpm import:excel data/songs.xlsx
 ```
 
 Sheet layout (first sheet in the workbook): row 1 = headers, **column A is ignored** (data columns start at B), one song per row after that, with headers matching the field names above (`slug`, `eng-title`, `vi-title`, `author`, `genre`, `performed by`, `en-url`, `vi-url`, `sheet-url`, `key chord`). Put multiple genres in one cell separated by commas (e.g. `Praising, Christmas`). You can skip the `is_bilingual` column entirely — it's derived automatically. `slug` can be left blank and the script will generate one from the title, but it prints a warning for every row it had to guess, so check those.
 
-This **overwrites every existing `data/song_list_*.json`** and regenerates them from the spreadsheet (chunked to ~50 songs per file) — the Excel file becomes the source of truth once you start using it. It never touches `data/data-format.json`. It's a manual command you run yourself whenever the spreadsheet changes; nothing in the site itself runs an import (see `CLAUDE.md`).
+This **overwrites every existing `data/song_list_*.json`** and regenerates them from the spreadsheet (chunked to ~50 songs per file) — the Excel file becomes the source of truth once you start using it. It never touches `data/data-format.json`.
+
+**Deploys read the Excel file automatically.** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs `pnpm import:excel data/songs.xlsx` right after installing, *if* that file exists in the repo — so once you've committed it, every push to `master` rebuilds the JSON from whatever's currently in `data/songs.xlsx` before building and deploying. If the file isn't committed, CI just builds from whatever JSON is already there, same as before.
+
+This only regenerates the JSON used for that one deploy — it isn't written back to the repo. For local dev (`pnpm dev`) to reflect spreadsheet changes too, run `pnpm import:excel data/songs.xlsx` yourself and commit the result, the same as you would for any other data change.
 
 ## Deployment
 
